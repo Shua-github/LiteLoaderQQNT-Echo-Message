@@ -187,22 +187,23 @@ function removePlusOneTag(msgContentContainer) {
 
 function plusOneListener(svgContainer) {
     svgContainer.addEventListener('click', async () => {
-        //准备复读并发送消息.
-        const msgID = svgContainer.closest('.ml-item').id
-        const curAioData = app.__vue_app__.config.globalProperties.$store.state.common_Aio.curAioData
-        const peerUid = curAioData.header.uid
-        const chatType = curAioData.chatType
-        //console.log('拿到的消息ID为' + msgID)
-        //发送IPC消息
-        await window.echo_message.invokeNative("ns-ntApi", "nodeIKernelMsgService/forwardMsgWithComment", false, window.webContentId,
-            {
-                "msgIds": [msgID],
-                "msgAttributeInfos": new Map(),
-                "srcContact": {"chatType": chatType, "peerUid": peerUid, "guildId": ""},
-                "dstContacts": [{"chatType": chatType, "peerUid": peerUid, "guildId": ""}],
-                "commentElements": []
-            }, null)
-    })
+        // 准备复读并发送消息
+        const msgID = svgContainer.closest('.ml-item').id; // 获取消息ID
+        const curAioData = app.__vue_app__.config.globalProperties.$store.state.common_Aio.curAioData;
+        const peerUid = curAioData.header.uid;
+        const chatType = curAioData.chatType;
+
+        // 检查是否是长 ID，假设所有消息 ID 都是长 ID
+        const isLongId = true; // 这里假设所有的消息 ID 都是长 ID，调整此部分逻辑根据你的需求
+
+        // 调用 call_forward_msg 来转发消息
+        try {
+            await window.echo_message.call_forward_msg(msgID, peerUid, null, isLongId);
+            console.log(`消息转发成功，消息ID: ${msgID}`);
+        } catch (error) {
+            console.error('消息转发失败:', error);
+        }
+    });
 }
 
 export function patchCss() {
@@ -256,16 +257,4 @@ export function patchCss() {
     style.innerHTML = sHtml
     document.getElementsByTagName('head')[0].appendChild(style)
     console.log(pluginName + 'css加载完成')
-}
-
-const textElement = {
-    elementType: 1,
-    elementId: '',
-    textElement: {
-        content: '',
-        atType: 0,
-        atUid: '',
-        atTinyId: '',
-        atNtUid: ''
-    }
 }
