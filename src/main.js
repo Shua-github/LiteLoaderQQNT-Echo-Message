@@ -3,10 +3,9 @@ const http = require('http');
 const https = require('https');
 const serverURL = "http://127.0.0.1:3000";
 
-function call_forward_msg(message_id, group_id, user_id, is_long_id) {
+function call_forward_msg(message_id, group_id, user_id) {
     let payload = {
         message_id,
-        is_long_id,
     };
 
     let interfaceName;  // 确保接口名变量被定义
@@ -41,10 +40,10 @@ function call_forward_msg(message_id, group_id, user_id, is_long_id) {
             res.on("end", () => {
                 try {
                     const result = JSON.parse(data);
-                    if (result.success) {
+                    if (result.status == "status") {
                         resolve(result);
                     } else {
-                        reject(new Error("转发失败"));
+                        reject(new Error(`转发失败，错误信息：${result.message},原始请求：${JSON.stringify(payload)}`));
                     }
                 } catch (error) {
                     reject(new Error("响应解析失败"));

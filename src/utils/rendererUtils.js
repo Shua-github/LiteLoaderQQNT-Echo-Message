@@ -4,212 +4,186 @@ class ListenerHandler {
     constructor(msgContentContainer) {
         this.msgContentContainer = msgContentContainer
         this.leaveTimeout = undefined
-        //绑定下面函数this的上下文
         this.handleMouseEnter = this.handleMouseEnter.bind(this);
         this.handleMouseLeave = this.handleMouseLeave.bind(this);
     }
 
     handleMouseEnter() {
         clearTimeout(this.leaveTimeout);
-        appendPlusOneTag(this.msgContentContainer); // 添加tag
+        appendPlusOneTag(this.msgContentContainer); // 添加 +1 标签
     }
 
     handleMouseLeave() {
         this.leaveTimeout = setTimeout(() => {
             removePlusOneTag(this.msgContentContainer);
-        }, 150) // 移除tag
+        }, 150) // 移除 +1 标签
     };
 
     addCommonPlusOne() {
         try {
-            //给每一个消息都加上tag。实现在hover的时候显示，在不hover的时候取消显示。
-            if (!this.msgContentContainer?.classList.contains('echo-message'))//说明这条消息还没加上事件监听器
-            {
+            if (!this.msgContentContainer?.classList.contains('echo-message')) {
                 this.msgContentContainer.classList.add('echo-message')
-                //准备添加事件监听器
                 this.msgContentContainer.addEventListener('mouseenter', this.handleMouseEnter)
                 this.msgContentContainer.addEventListener('mouseleave', this.handleMouseLeave)
             }
         } catch (e) {
+            console.error(e);
         }
     }
 }
 
 export async function messageRenderer(allChats) {
-
     for (let i = 0; i < allChats.length; i++) {
         const msgContentContainer = allChats[i]?.querySelector('.msg-content-container')
         const preMsgConContainer = i > 0 ? allChats[i - 1]?.querySelector('.msg-content-container') : null;
-        if (preMsgConContainer?.querySelector('.em-svg-container')) removePlusOneTag(msgContentContainer)//只保留一个svg
-        if (msgContentContainer?.classList.contains('em-msg-container')) continue//已经改过的不要改
-
+        if (preMsgConContainer?.querySelector('.em-svg-container')) removePlusOneTag(msgContentContainer)
+        if (msgContentContainer?.classList.contains('em-msg-container')) continue
 
         const currentMsgContent = allChats[i]?.querySelector('.message-content');
         const prevMsgContent = i - 1 < 0 ? undefined : allChats[i - 1]?.querySelector('.message-content');
         const nextMsgContent = i + 1 === allChats.length ? undefined : allChats[i + 1]?.querySelector('.message-content');
-        //判断有没有越界，越界了就开始下一个循环。
         if (!(prevMsgContent || nextMsgContent)) {
             (new ListenerHandler(msgContentContainer)).addCommonPlusOne()
             continue
         }
-        //判断是否符合+1条件
         if (!msgChecker(prevMsgContent, currentMsgContent, nextMsgContent)) {
             (new ListenerHandler(msgContentContainer)).addCommonPlusOne()
             continue
         }
-
-        //没问题！应该对下一条消息加上+1标签。
-        //console.log(pluginName + '消息检查成功')
-        appendPlusOneTag(msgContentContainer)//添加tag
+        appendPlusOneTag(msgContentContainer)
     }
 }
 
-/**
- * 检查当前元素是否和上一个相同，同时和下一个不同
- * @param prevMsgContent
- * @param currentMsgContent
- * @param nextMsgContent
- */
 function msgChecker(prevMsgContent, currentMsgContent, nextMsgContent) {
     const prevMsgs = msgExtractor(prevMsgContent)
     const currentMsgs = msgExtractor(currentMsgContent)
     const nextMsgs = msgExtractor(nextMsgContent)
-    //console.log(JSON.stringify(prevMsgs), JSON.stringify(currentMsgs), JSON.stringify(nextMsgs))
     return JSON.stringify(nextMsgs) === JSON.stringify(currentMsgs) &&
         JSON.stringify(currentMsgs) !== JSON.stringify(prevMsgs)
 }
 
-/**
- * 传入msgContent，返回一个数组，里面是消息文本和图片src地址
- * @param msgContent
- * @returns {*[]}
- */
 function msgExtractor(msgContent) {
     if (!msgContent?.querySelectorAll) return []
-    return [...(Array.from(msgContent?.querySelectorAll('.text-normal')).map(textElement => textElement?.innerText)),
+    return [
+        ...(Array.from(msgContent?.querySelectorAll('.text-normal')).map(textElement => textElement?.innerText)),
         ...(Array.from(msgContent?.querySelectorAll('.image-content')).map(imgElement => imgElement?.src)),
-        ...(Array.from(msgContent?.querySelectorAll('.markdown-element')).map(markdownElement => markdownElement.children))]
+        ...(Array.from(msgContent?.querySelectorAll('.markdown-element')).map(markdownElement => markdownElement.children))
+    ]
 }
 
 /**
- * 添加+1tag
- * @param msgContentContainer
+ * 添加 +1 标签
+ * @param {HTMLElement} el 消息内容容器
  */
-function appendPlusOneTag(msgContentContainer) {
-    try {
-        if (msgContentContainer.querySelector('.em-svg-container')) return;//已经有了就不要再加了。
-
-        const svgContainer = document.createElement('div');
-        svgContainer.className = 'em-svg-container'
-        svgContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#66ccff"><path d="M250-292.31v-120H130v-60h120v-120h60v120h120v60H310v120h-60Zm391.54 71.54v-428.77l-96.62 68.31-34.46-51.54 149.39-106.46h47.84v518.46h-66.15Z"/></svg>`
-        svgContainer.style.display = 'flex';
-        svgContainer.style.justifyContent = 'center'; // 水平居中
-        svgContainer.style.alignItems = 'center'; // 垂直居中
-        svgContainer.style.cursor = 'pointer'; // 鼠标悬停时光标变为手指
-
-        msgContentContainer.classList.add('em-msg-container')//先修改父元素样式
-        msgContentContainer.appendChild(svgContainer)
-
-        if (msgContentContainer?.classList.contains('container--others'))//说明是别人发的消息
-        {
-            svgContainer.classList.add('em-plus-one-img-right')
-            svgContainer.addEventListener('mouseenter', () => {
-                svgContainer.style.transform = "translateX(50%) scale(1.1)";
-                svgContainer.style.boxShadow = "0 0 10px rgba(17,183,234,0.5)";
-            })
-            svgContainer.addEventListener('mouseleave', () => {
-                svgContainer.style.transform = "translateX(50%) scale(1)";
-                svgContainer.style.boxShadow = "none"; // 恢复原来的样式
-            })
-            svgContainer.addEventListener('mousedown', () => {
-                svgContainer.style.transform = "translateX(50%) scale(0.9)"; // 按下时缩小
-                svgContainer.style.boxShadow = "0 0 5px rgba(17,183,234,0.5)"; // 按下时阴影
-            });
-            svgContainer.addEventListener('mouseup', () => {
-                svgContainer.style.transform = "translateX(50%) scale(1)"; // 按下时缩小
-                svgContainer.style.boxShadow = "0 0 5px rgba(17,183,234,0.5)"; // 按下时阴影
-            });
-
-
-        } else {
-            svgContainer.classList.add('em-plus-one-img-left')
-            svgContainer.addEventListener('mouseenter', () => {
-                svgContainer.style.transform = "translateX(-50%) scale(1.1)";
-                svgContainer.style.boxShadow = "0 0 10px rgba(17,183,234,0.5)";
-            })
-            svgContainer.addEventListener('mouseleave', () => {
-                svgContainer.style.transform = "translateX(-50%) scale(1)";
-                svgContainer.style.boxShadow = "none"; // 恢复原来的样式
-            })
-            svgContainer.addEventListener('mousedown', () => {
-                svgContainer.style.transform = "translateX(-50%) scale(0.9)"; // 按下时缩小
-                svgContainer.style.boxShadow = "0 0 5px rgba(17,183,234,0.5)"; // 按下时阴影
-            });
-            svgContainer.addEventListener('mouseup', () => {
-                svgContainer.style.transform = "translateX(-50%) scale(1)"; // 按下时缩小
-                svgContainer.style.boxShadow = "0 0 5px rgba(17,183,234,0.5)"; // 按下时阴影
-            });
-        }
-
-        setTimeout(() => {
-            svgContainer.style.transform = msgContentContainer?.classList.contains('container--others') ?
-                "translateX(50%)" : "translateX(-50%)";
-            svgContainer.style.opacity = "0.9";
-            svgContainer.style.border = "2px solid #66ccff";
-        }, 100);
-
-        plusOneListener(svgContainer)//添加事件监听器。
-
-        // console.log(pluginName + '+1tag添加成功')
-    } catch (e) {
-
+function appendPlusOneTag(el) {
+    if (!el || el.classList.contains("lite-tools-plus-one-msg")) {
+        return;
     }
-}
+    const slot = el.querySelector(".lite-tools-slot") || el; // 如果没有插槽，直接使用 el
+    console.log("添加 +1 标记", el);
+    el.classList.add("lite-tools-plus-one-msg");
 
+    const plusOneEl = document.createElement("div");
+    plusOneEl.className = 'em-svg-container';
+    plusOneEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#66ccff"><path d="M250-292.31v-120H130v-60h120v-120h60v120h120v60H310v120h-60Zm391.54 71.54v-428.77l-96.62 68.31-34.46-51.54 149.39-106.46h47.84v518.46h-66.15Z"/></svg>`;
+    plusOneEl.style.display = 'flex';
+    plusOneEl.style.justifyContent = 'center';
+    plusOneEl.style.alignItems = 'center';
+    plusOneEl.style.cursor = 'pointer';
 
-function removePlusOneTag(msgContentContainer) {
-    const svgContainer = msgContentContainer?.querySelector('.em-svg-container')
-    if (!svgContainer) return//找不到就直接退出
-
-    svgContainer.style.opacity = '0'
-    if (msgContentContainer?.classList.contains('container--others'))//说明是别人发的消息
-    {
-        svgContainer.style.transform = "translateX(-100%)"
+    if (el.classList.contains('container--others')) {
+        plusOneEl.classList.add('em-plus-one-img-right');
     } else {
-        svgContainer.style.transform = "translateX(100%)"
+        plusOneEl.classList.add('em-plus-one-img-left');
     }
 
-    setTimeout(() => {
-        msgContentContainer.removeChild(svgContainer)//移除掉多余的svg
-    }, 500)
+    slot.appendChild(plusOneEl);
+    el.classList.add('em-msg-container');
 
+    plusOneEl.style.opacity = "0.2";
+    setTimeout(() => {
+        plusOneEl.style.opacity = "0.9";
+        plusOneEl.style.transform = el.classList.contains('container--others') ? "translateX(50%)" : "translateX(-50%)";
+        plusOneEl.style.border = "2px solid #66ccff";
+    }, 100);
+
+    plusOneEl.addEventListener('mouseenter', () => {
+        plusOneEl.style.transform = el.classList.contains('container--others') ? "translateX(50%) scale(1.1)" : "translateX(-50%) scale(1.1)";
+        plusOneEl.style.boxShadow = "0 0 10px rgba(17,183,234,0.5)";
+    });
+    plusOneEl.addEventListener('mouseleave', () => {
+        plusOneEl.style.transform = el.classList.contains('container--others') ? "translateX(50%) scale(1)" : "translateX(-50%) scale(1)";
+        plusOneEl.style.boxShadow = "none";
+    });
+    plusOneEl.addEventListener('mousedown', () => {
+        plusOneEl.style.transform = el.classList.contains('container--others') ? "translateX(50%) scale(0.9)" : "translateX(-50%) scale(0.9)";
+        plusOneEl.style.boxShadow = "0 0 5px rgba(17,183,234,0.5)";
+    });
+    plusOneEl.addEventListener('mouseup', () => {
+        plusOneEl.style.transform = el.classList.contains('container--others') ? "translateX(50%) scale(1)" : "translateX(-50%) scale(1)";
+        plusOneEl.style.boxShadow = "0 0 5px rgba(17,183,234,0.5)";
+    });
+
+    plusOneListener(plusOneEl);
 }
 
-function plusOneListener(svgContainer) {
-    svgContainer.addEventListener('click', async () => {
-        // 准备复读并发送消息
-        const msgID = svgContainer.closest('.ml-item').id; // 获取消息ID
+/**
+ * 移除 +1 标签
+ * @param {HTMLElement} el 消息内容容器
+ */
+function removePlusOneTag(el) {
+    if (!el || !el.classList.contains("lite-tools-plus-one-msg")) {
+        return;
+    }
+    const plusOneEl = el.querySelector(".em-svg-container");
+    if (plusOneEl) {
+        console.log("移除 +1 标记", el);
+        plusOneEl.style.opacity = "0";
+        plusOneEl.style.transform = el.classList.contains('container--others') ? "translateX(-100%)" : "translateX(100%)";
+        setTimeout(() => {
+            el.removeChild(plusOneEl);
+            el.classList.remove("lite-tools-plus-one-msg");
+            el.classList.remove("em-msg-container");
+        }, 500);
+    }
+}
+
+/**
+ * 添加 +1 标签点击事件监听器
+ * @param {HTMLElement} plusOneEl SVG 容器
+ */
+function plusOneListener(plusOneEl) {
+    plusOneEl.addEventListener('click', async () => {
+        const msgID = plusOneEl.closest('.ml-item').id;
         const curAioData = app.__vue_app__.config.globalProperties.$store.state.common_Aio.curAioData;
         const peerUid = curAioData.header.uid;
+        const peerUin = curAioData.header.uin;
         const chatType = curAioData.chatType;
 
-        // 检查是否是长 ID，假设所有消息 ID 都是长 ID
-        const isLongId = true; // 这里假设所有的消息 ID 都是长 ID，调整此部分逻辑根据你的需求
-
-        // 调用 call_forward_msg 来转发消息
         try {
-            await window.echo_message.call_forward_msg(msgID, peerUid, null, isLongId);
+            if (chatType == 1) {
+                console.log(curAioData)
+                await window.echo_message.call_forward_msg(msgID, null, peerUin)
+            } else if (chatType == 2) {
+                await window.echo_message.call_forward_msg(msgID, peerUid, null)
+            } else {
+                new Error('未知聊天类型')
+            }
             console.log(`消息转发成功，消息ID: ${msgID}`);
+            console.log(chatType)
         } catch (error) {
             console.error('消息转发失败:', error);
         }
     });
 }
 
+/**
+ * 注入 CSS 样式
+ */
 export function patchCss() {
-    console.log(pluginName + 'css加载中')
+    console.log(pluginName + 'css加载中');
 
-    let style = document.createElement('style')
+    let style = document.createElement('style');
     style.type = "text/css";
     style.id = "echo-message-css";
 
@@ -237,7 +211,6 @@ export function patchCss() {
     transition: 250ms;
 }
 
-
 .em-plus-one-img-left {
     position: absolute;
     right: calc(100% - 5px);
@@ -251,10 +224,9 @@ export function patchCss() {
     box-shadow: var(--box-shadow);
     transition: 250ms;
 }
+`;
 
-`
-
-    style.innerHTML = sHtml
-    document.getElementsByTagName('head')[0].appendChild(style)
-    console.log(pluginName + 'css加载完成')
+    style.innerHTML = sHtml;
+    document.getElementsByTagName('head')[0].appendChild(style);
+    console.log(pluginName + 'css加载完成');
 }
